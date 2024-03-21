@@ -66,6 +66,8 @@ class Venue(db.Model):
     genres = db.relationship('Genre', secondary=lambda: venue_genre_table)
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
+    def __repr__(self):
+      return f"<Venue {self.id}, {self.name}>"
 
 class Artist(db.Model):
     __tablename__ = 'artists'
@@ -80,13 +82,19 @@ class Artist(db.Model):
     facebook_link = db.Column(db.String(120))
     venues = db.relationship('Show', back_populates="artist")
     genres = db.relationship('Genre', secondary=lambda: artist_genre_table)
+
+    def __repr__(self):
+      return f"<Artist {self.id}, {self.name}>"
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
 class Genre(db.Model):
     __tablename__ = 'genres'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    name = db.Column(db.String, unique=True)
+
+    def __repr__(self):
+      return f"<Genre {self.id}, {self.name}>"    
 
 artist_genre_table = db.Table(
   'artist_genre',
