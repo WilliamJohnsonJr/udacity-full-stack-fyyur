@@ -28,6 +28,7 @@ Our tech stack will include the following:
  * **Flask-Migrate** for creating and running schema migrations
 You can download and install the dependencies mentioned above using `pip` as:
 ```
+// DON'T DO THIS - install using requirements.txt
 pip install virtualenv
 pip install SQLAlchemy
 pip install postgres
@@ -184,6 +185,11 @@ Navigate to project homepage [http://127.0.0.1:5000/](http://127.0.0.1:5000/) or
 ## Troubleshooting:
 - If you encounter any dependency errors, please ensure that you are using Python 3.9 or lower.
 - If you are still facing the dependency errors, follow the given commands:
-  - `using pip install --upgrade flask-moment`
-  - `Using pip install Werkzeug==2.0.0`
-  - `Using pip uninstall Flask and then pip install flask==2.0.3`
+  - `pip install --upgrade flask-moment`
+  - `pip install Werkzeug==2.0.0`
+  - `pip uninstall Flask`
+  - `pip install flask==2.0.3`
+  - `pip install --upgrade flask-wtf`
+  - `pip install --upgrade flask_sqlalchemy`
+  - `pip install psycopg2`
+  - `pip install --upgrade python-dateutil`

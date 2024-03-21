@@ -3,7 +3,7 @@
 #----------------------------------------------------------------------------#
 
 import json
-import dateutil.parser
+from dateutil import parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_moment import Moment
@@ -62,7 +62,7 @@ class Artist(db.Model):
 #----------------------------------------------------------------------------#
 
 def format_datetime(value, format='medium'):
-  date = dateutil.parser.parse(value)
+  date = parser.parse(value)
   if format == 'full':
       format="EEEE MMMM, d, y 'at' h:mma"
   elif format == 'medium':
