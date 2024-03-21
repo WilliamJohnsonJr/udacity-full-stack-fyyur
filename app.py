@@ -6,12 +6,19 @@ import json
 from dateutil import parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask_migrate import Migrate
 from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.ext.associationproxy import association_proxy
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
+
+class Base(DeclarativeBase):
+  pass
+
 #----------------------------------------------------------------------------#
 # App Config.
 #----------------------------------------------------------------------------#
@@ -19,42 +26,79 @@ from forms import *
 app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
-db = SQLAlchemy(app)
-
-# TODO: connect to a local postgresql database
+db = SQLAlchemy(model_class=Base)
+db.init_app(app)
+migrate = Migrate(app, db)
+app.app_context().push()
 
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
 
+
+class Show(db.Model):
+    __tablename__ = "shows"
+    venue_id = db.Column(db.ForeignKey("venues.id"), primary_key=True)
+    artist_id = db.Column(db.ForeignKey("artists.id"), primary_key=True)
+    start_time = db.Column(db.DateTime, nullable=False)
+    venue = db.relationship('Venue', back_populates='artists')
+    artist = db.relationship('Artist', back_populates='venues')
+    venue_name = association_proxy('venue', 'name')
+    artist_name = association_proxy('artist', 'name')
+    artist_image_link = association_proxy('artist', 'image_link')
+
 class Venue(db.Model):
-    __tablename__ = 'Venue'
+    __tablename__ = 'venues'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    name = db.Column(db.String, unique=True)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     address = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
+    image_link = db.Column(db.String(500), nullable=True)
+    facebook_link = db.Column(db.String(120), nullable=True)
+    website = db.Column(db.String(120), nullable=True)
+    facebook_link = db.Column(db.String(120), nullable=True)
+    seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
+    seeking_description = db.Column(db.String)
+    artists = db.relationship('Show', back_populates="venue")
+    genres = db.relationship('Genre', secondary=lambda: venue_genre_table)
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
 class Artist(db.Model):
-    __tablename__ = 'Artist'
+    __tablename__ = 'artists'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
+    name = db.Column(db.String, unique=True)
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-
+    venues = db.relationship('Show', back_populates="artist")
+    genres = db.relationship('Genre', secondary=lambda: artist_genre_table)
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
+class Genre(db.Model):
+    __tablename__ = 'genres'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+
+artist_genre_table = db.Table(
+  'artist_genre',
+  db.Column("artist_id", db.Integer, db.ForeignKey("artists.id"), primary_key=True),
+  db.Column("genre_id", db.Integer, db.ForeignKey("genres.id"), primary_key=True),
+)
+
+venue_genre_table = db.Table(
+  'venue_genre',
+  db.Column("venue_id", db.Integer, db.ForeignKey("venues.id"), primary_key=True),
+  db.Column("genre_id", db.Integer, db.ForeignKey("genres.id"), primary_key=True),
+)
 # TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
 
 #----------------------------------------------------------------------------#
