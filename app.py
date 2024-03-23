@@ -1,6 +1,6 @@
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 # Imports
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 
 import json
 from dateutil import parser
@@ -13,11 +13,12 @@ from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
 from models import db, Show, Venue, Artist
+from sqlalchemy import func
 
 
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 # App Config.
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 
 app = Flask(__name__)
 moment = Moment(app)
@@ -28,9 +29,9 @@ migrate = Migrate(app, db)
 app.app_context().push()
 
 
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 # Filters.
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 
 def format_datetime(value, format='medium'):
     if isinstance(value, datetime):
@@ -47,9 +48,9 @@ def format_datetime(value, format='medium'):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 # Controllers.
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 
 @app.route('/')
 def index():
@@ -61,30 +62,52 @@ def index():
 
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
-  return render_template('pages/venues.html', areas=data)
+    #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
+    # data=[{
+    #   "city": "San Francisco",
+    #   "state": "CA",
+    #   "venues": [{
+    #     "id": 1,
+    #     "name": "The Musical Hop",
+    #     "num_upcoming_shows": 0,
+    #   }, {
+    #     "id": 3,
+    #     "name": "Park Square Live Music & Coffee",
+    #     "num_upcoming_shows": 1,
+    #   }]
+    # }, {
+    #   "city": "New York",
+    #   "state": "NY",
+    #   "venues": [{
+    #     "id": 2,
+    #     "name": "The Dueling Pianos Bar",
+    #     "num_upcoming_shows": 0,
+    #   }]
+    # }]
+    areas = (
+        db.session.query(Venue.city, Venue.state)
+        .distinct(Venue.city, Venue.state)
+        .order_by(Venue.state)
+        .all()
+    )
+    data = []
+    for area in areas:
+        venue_list = []
+        venues = Venue.query.filter(Venue.city == area.city, Venue.state == area.state)
+        for venue in venues:
+            venue_list.append(
+                {
+                    "id": venue.id,
+                    "name": venue.name,
+                    "num_upcoming_shows": venue.upcoming_shows_count,
+                }
+            )
+        data.append({
+            "city": area.city,
+            "state": area.state,
+            "venues": venue_list
+        })
+    return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
 def search_venues():
@@ -183,7 +206,18 @@ def show_venue(venue_id):
   # }
   # data = list(filter(lambda d: d['id'] == venue_id, [data1, data2, data3]))[0]
   venue = Venue.query.get(venue_id)
-  return render_template('pages/show_venue.html', venue=venue)
+  past_shows = venue.past_shows
+  upcoming_shows = venue.upcoming_shows
+
+  genre_names = [genre.name for genre in venue.genres]
+  venue_dict = venue.__dict__
+  venue_dict.pop('_sa_instance_state', None)
+  venue_dict["genres"] = genre_names
+  venue_dict["past_shows"] = past_shows
+  venue_dict["past_shows_count"] = venue.past_shows_count
+  venue_dict["upcoming_shows"] = upcoming_shows
+  venue_dict["upcoming_shows_count"] = venue.upcoming_shows_count
+  return render_template('pages/show_venue.html', venue=venue_dict)
 
 #  Create Venue
 #  ----------------------------------------------------------------
@@ -321,8 +355,19 @@ def show_artist(artist_id):
   #   "upcoming_shows_count": 3,
   # }
   # data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
-  data = Artist.query.get(artist_id)
-  return render_template('pages/show_artist.html', artist=data)
+  artist = Artist.query.get(artist_id)
+  past_shows = artist.past_shows
+  upcoming_shows = artist.upcoming_shows
+
+  genre_names = [genre.name for genre in artist.genres]
+  artist_dict = artist.__dict__
+  artist_dict.pop('_sa_instance_state', None)
+  artist_dict["genres"] = genre_names
+  artist_dict["past_shows"] = past_shows
+  artist_dict["past_shows_count"] = artist.past_shows_count
+  artist_dict["upcoming_shows"] = upcoming_shows
+  artist_dict["upcoming_shows_count"] = artist.upcoming_shows_count
+  return render_template('pages/show_artist.html', artist=artist_dict)
 
 #  Update
 #  ----------------------------------------------------------------
@@ -481,9 +526,9 @@ if not app.debug:
     app.logger.addHandler(file_handler)
     app.logger.info('errors')
 
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 # Launch.
-#----------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------#
 
 # Default port:
 if __name__ == '__main__':
