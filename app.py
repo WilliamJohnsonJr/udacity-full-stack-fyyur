@@ -3,23 +3,17 @@
 #----------------------------------------------------------------------------#
 
 import json
-from datetime import datetime
 from dateutil import parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
 from flask_migrate import Migrate
 from flask_moment import Moment
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.ext.associationproxy import association_proxy
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
+from models import db, Show, Venue, Artist
 
-class Base(DeclarativeBase):
-  pass
 
 #----------------------------------------------------------------------------#
 # App Config.
@@ -28,131 +22,11 @@ class Base(DeclarativeBase):
 app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
-db = SQLAlchemy(model_class=Base)
+
 db.init_app(app)
 migrate = Migrate(app, db)
 app.app_context().push()
 
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-
-
-class Show(db.Model):
-    __tablename__ = "shows"
-    id = db.Column(db.Integer, primary_key=True)
-    venue_id = db.Column(db.ForeignKey("venues.id"), nullable=False)
-    artist_id = db.Column(db.ForeignKey("artists.id"), nullable=False)
-    start_time = db.Column(db.DateTime, nullable=False)
-    artist = db.relationship('Artist', back_populates='shows')
-    venue = db.relationship('Venue', back_populates='shows')
-    venue_name = association_proxy('venue', 'name')
-    venue_image_link = association_proxy('venue', 'image_link')
-    artist_name = association_proxy('artist', 'name')
-    artist_image_link = association_proxy('artist', 'image_link')
-
-class Venue(db.Model):
-    __tablename__ = 'venues'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500), nullable=True)
-    facebook_link = db.Column(db.String(120), nullable=True)
-    website = db.Column(db.String(120), nullable=True)
-    facebook_link = db.Column(db.String(120), nullable=True)
-    seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
-    seeking_description = db.Column(db.String)
-    shows = db.relationship('Show', back_populates='venue')
-    genres = db.relationship('Genre', secondary=lambda: venue_genre_table)
-
-    @property
-    def past_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time < current_time]
-    
-    @property
-    def past_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time < current_time])
-    
-    @property
-    def upcoming_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time >= current_time]
-    
-    @property
-    def upcoming_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time >= current_time])
-
-    def __repr__(self):
-      return f"<Venue {self.id}, {self.name}>"
-
-class Artist(db.Model):
-    __tablename__ = 'artists'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500), nullable=True)
-    facebook_link = db.Column(db.String(120), nullable=True)
-    website = db.Column(db.String(120), nullable=True)
-    facebook_link = db.Column(db.String(120), nullable=True)
-    seeking_venue = db.Column(db.Boolean, nullable=False, default=False)
-    seeking_description = db.Column(db.String)
-    shows = db.relationship('Show', back_populates='artist')
-    genres = db.relationship('Genre', secondary=lambda: artist_genre_table)
-
-    @property
-    def past_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time < current_time]
-    
-    @property
-    def past_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time < current_time])
-    
-    @property
-    def upcoming_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time >= current_time]
-    
-    @property
-    def upcoming_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time >= current_time])
-
-    def __repr__(self):
-      return f"<Artist {self.id}, {self.name}>"
-
-class Genre(db.Model):
-    __tablename__ = 'genres'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True)
-
-    def __repr__(self):
-      return f"<Genre {self.id}, {self.name}>"    
-
-artist_genre_table = db.Table(
-  'artist_genre',
-  db.Column("artist_id", db.Integer, db.ForeignKey("artists.id"), primary_key=True),
-  db.Column("genre_id", db.Integer, db.ForeignKey("genres.id"), primary_key=True),
-)
-
-venue_genre_table = db.Table(
-  'venue_genre',
-  db.Column("venue_id", db.Integer, db.ForeignKey("venues.id"), primary_key=True),
-  db.Column("genre_id", db.Integer, db.ForeignKey("genres.id"), primary_key=True),
-)
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -344,7 +218,6 @@ def delete_venue(venue_id):
 #  ----------------------------------------------------------------
 @app.route('/artists')
 def artists():
-  # TODO: replace with real data returned from querying the database
   # data=[{
   #   "id": 4,
   #   "name": "Guns N Petals",
@@ -376,7 +249,6 @@ def search_artists():
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
-  # TODO: replace with real artist data from the artist table, using artist_id
   # data1={
   #   "id": 4,
   #   "name": "Guns N Petals",
@@ -533,43 +405,43 @@ def create_artist_submission():
 @app.route('/shows')
 def shows():
   # displays list of shows at /shows
-  # TODO: replace with real venues data.
-  data=[{
-    "venue_id": 1,
-    "venue_name": "The Musical Hop",
-    "artist_id": 4,
-    "artist_name": "Guns N Petals",
-    "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
-    "start_time": "2019-05-21T21:30:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 5,
-    "artist_name": "Matt Quevedo",
-    "artist_image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
-    "start_time": "2019-06-15T23:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-01T20:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-08T20:00:00.000Z"
-  }, {
-    "venue_id": 3,
-    "venue_name": "Park Square Live Music & Coffee",
-    "artist_id": 6,
-    "artist_name": "The Wild Sax Band",
-    "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
-    "start_time": "2035-04-15T20:00:00.000Z"
-  }]
+  # data=[{
+  #   "venue_id": 1,
+  #   "venue_name": "The Musical Hop",
+  #   "artist_id": 4,
+  #   "artist_name": "Guns N Petals",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80",
+  #   "start_time": "2019-05-21T21:30:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 5,
+  #   "artist_name": "Matt Quevedo",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1495223153807-b916f75de8c5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=334&q=80",
+  #   "start_time": "2019-06-15T23:00:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 6,
+  #   "artist_name": "The Wild Sax Band",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
+  #   "start_time": "2035-04-01T20:00:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 6,
+  #   "artist_name": "The Wild Sax Band",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
+  #   "start_time": "2035-04-08T20:00:00.000Z"
+  # }, {
+  #   "venue_id": 3,
+  #   "venue_name": "Park Square Live Music & Coffee",
+  #   "artist_id": 6,
+  #   "artist_name": "The Wild Sax Band",
+  #   "artist_image_link": "https://images.unsplash.com/photo-1558369981-f9ca78462e61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=794&q=80",
+  #   "start_time": "2035-04-15T20:00:00.000Z"
+  # }]
+  data = Show.query.order_by('start_time').all()
   return render_template('pages/shows.html', shows=data)
 
 @app.route('/shows/create')
