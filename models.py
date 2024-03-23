@@ -29,7 +29,6 @@ class Show(db.Model):
     artist_name = association_proxy("artist", "name")
     artist_image_link = association_proxy("artist", "image_link")
 
-
 class Venue(db.Model):
     __tablename__ = "venues"
 
