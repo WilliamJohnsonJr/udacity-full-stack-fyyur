@@ -1,9 +1,8 @@
-from sqlalchemy import text
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.associationproxy import association_proxy
 from datetime import datetime
-
+from enum import Enum
 
 class Base(DeclarativeBase):
     pass
@@ -45,7 +44,7 @@ class Venue(db.Model):
     seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
     seeking_description = db.Column(db.String)
     shows = db.relationship("Show", back_populates="venue")
-    genres = db.relationship("Genre", secondary=lambda: venue_genre_table)
+    genres = db.relationship("VenueGenre", lazy=True)
 
     @property
     def past_shows(self):
@@ -87,7 +86,7 @@ class Artist(db.Model):
     seeking_venue = db.Column(db.Boolean, nullable=False, default=False)
     seeking_description = db.Column(db.String)
     shows = db.relationship("Show", back_populates="artist")
-    genres = db.relationship("Genre", secondary=lambda: artist_genre_table)
+    genres = db.relationship("ArtistGenre", lazy=True)
 
     @property
     def past_shows(self):
@@ -112,25 +111,36 @@ class Artist(db.Model):
     def __repr__(self):
         return f"<Artist {self.id}, {self.name}>"
 
+class Genre(Enum):
+    ALTERNATIVE = 'Alternative'
+    BLUES = 'Blues'
+    CLASSICAL = 'Classical'
+    COUNTRY = 'Country'
+    ELECTRONIC = 'Electronic'
+    FOLK = 'Folk'
+    FUNK = 'Funk'
+    HIP_HOP = 'Hip-Hop'
+    HEAVY_METAL = 'Heavy Metal'
+    INSTRUMENTAL = 'Instrumental'
+    JAZZ = 'Jazz'
+    MUSICAL_THEATRE = 'Musical Theatre'
+    POP = 'Pop'
+    PUNK = 'Punk'
+    R_AND_B = 'R&B'
+    REGGAE = 'Reggae'
+    ROCK_N_ROLL = 'Rock n Roll'
+    SOUL = 'Soul'
+    SWING = 'Swing'
+    OTHER = 'Other'
 
-class Genre(db.Model):
-    __tablename__ = "genres"
+class ArtistGenre(db.Model):
+    __tablename__ = "artist_genre"
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, unique=True)
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), primary_key=True)
+    genre = db.Column(db.Enum(Genre, values_callable=lambda x: [e.value for e in x], name='genre'), primary_key=True)
 
-    def __repr__(self):
-        return f"<Genre {self.id}, {self.name}>"
+class VenueGenre(db.Model):
+    __tablename__ = "venue_genre"
 
-
-artist_genre_table = db.Table(
-    "artist_genre",
-    db.Column("artist_id", db.Integer, db.ForeignKey("artists.id"), primary_key=True),
-    db.Column("genre_id", db.Integer, db.ForeignKey("genres.id"), primary_key=True),
-)
-
-venue_genre_table = db.Table(
-    "venue_genre",
-    db.Column("venue_id", db.Integer, db.ForeignKey("venues.id"), primary_key=True),
-    db.Column("genre_id", db.Integer, db.ForeignKey("genres.id"), primary_key=True),
-)
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), primary_key=True)
+    genre = db.Column(db.Enum(Genre, values_callable=lambda x: [e.value for e in x], name='genre'), primary_key=True)

@@ -5,14 +5,14 @@
 import json
 from dateutil import parser
 import babel
-from flask import Flask, render_template, request, Response, flash, redirect, url_for
+from flask import Flask, abort, jsonify, render_template, request, Response, flash, redirect, url_for
 from flask_migrate import Migrate
 from flask_moment import Moment
 import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
-from models import db, Show, Venue, Artist
+from models import ArtistGenre, Genre, db, Show, Venue, Artist
 from sqlalchemy import func
 
 
@@ -27,7 +27,6 @@ app.config.from_object('config')
 db.init_app(app)
 migrate = Migrate(app, db)
 app.app_context().push()
-
 
 # ----------------------------------------------------------------------------#
 # Filters.
@@ -109,11 +108,10 @@ def search_venues():
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
   # shows the venue page with the given venue_id
-  venue = Venue.query.get(venue_id)
+  venue = Venue.query.filter_by(id=venue_id).first()
   past_shows = venue.past_shows
   upcoming_shows = venue.upcoming_shows
-
-  genre_names = [genre.name for genre in venue.genres]
+  genre_names = [genre.genre.value for genre in venue.genres]
   venue_dict = venue.__dict__
   venue_dict.pop('_sa_instance_state', None)
   venue_dict["genres"] = genre_names
@@ -178,11 +176,10 @@ def search_artists():
 def show_artist(artist_id):
   # shows the artist page with the given artist_id
   
-  artist = Artist.query.get(artist_id)
+  artist = Artist.query.filter_by(id=artist_id).first()
   past_shows = artist.past_shows
   upcoming_shows = artist.upcoming_shows
-
-  genre_names = [genre.name for genre in artist.genres]
+  genre_names = [genre.genre.value for genre in artist.genres]
   artist_dict = artist.__dict__
   artist_dict.pop('_sa_instance_state', None)
   artist_dict["genres"] = genre_names
@@ -256,15 +253,52 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
-  # called upon submitting the new artist listing form
-  # TODO: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
+    # called upon submitting the new artist listing form
+    seeking_venue=request.form.get("seeking_venue")
+    artist = Artist(
+        name=request.form.get("name"),
+        city=request.form.get("city"),
+        state=request.form.get("state"),
+        phone=request.form.get("phone"),
+        image_link=request.form.get("image_link"),
+        website=request.form.get("website_link"),
+        facebook_link=request.form.get("facebook_link"),
+        seeking_venue=(True if seeking_venue else False),
+        seeking_description=request.form.get("seeking_description"),
+    )
+    print(str(artist.__dict__))
+    db.session.add(artist)
+    try:
+        db.session.flush()
+        artist_genres = request.form.getlist("genres")
+        selected_genres = []
+        for ag in artist_genres:
+            if ag in [g.value for g in Genre.__members__.values()]:
+                selected_genres.append(ag)
+            else:
+              print('bad genre')
+              raise(400)
 
-  # on successful db insert, flash success
-  flash('Artist ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
-  return render_template('pages/home.html')
+        if len(selected_genres):
+            data = list(
+                map(lambda g: {"artist_id": artist.id, "genre": g}, selected_genres)
+            )
+            for item in data:
+                new_ag = ArtistGenre(artist_id=item["artist_id"], genre=item["genre"])
+                db.session.add(new_ag)
+        db.session.commit()
+        # on successful db insert, flash success
+        flash("Artist " + request.form["name"] + " was successfully listed!")
+        return render_template("pages/home.html")
+    except:
+        db.session.rollback()
+        flash(
+            "An error occurred. Artist "
+            + request.form["name"]
+            + " could not be listed."
+        )
+        db.session.close()
+        abort(400)
 
 
 #  Shows
@@ -293,6 +327,10 @@ def create_show_submission():
   # e.g., flash('An error occurred. Show could not be listed.')
   # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
   return render_template('pages/home.html')
+
+@app.errorhandler(400)
+def handle_bad_request(error):
+    return redirect(url_for('index'))
 
 @app.errorhandler(404)
 def not_found_error(error):
