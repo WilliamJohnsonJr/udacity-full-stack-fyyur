@@ -21,8 +21,6 @@ class Show(db.Model):
     venue_id = db.Column(db.ForeignKey("venues.id"), nullable=False)
     artist_id = db.Column(db.ForeignKey("artists.id"), nullable=False)
     start_time = db.Column(db.DateTime, nullable=False)
-    artist = db.relationship("Artist", back_populates="shows")
-    venue = db.relationship("Venue", back_populates="shows")
     venue_name = association_proxy("venue", "name")
     venue_image_link = association_proxy("venue", "image_link")
     artist_name = association_proxy("artist", "name")
@@ -42,8 +40,9 @@ class Venue(db.Model):
     website = db.Column(db.String(2083), nullable=True)
     seeking_talent = db.Column(db.Boolean, nullable=False, default=False)
     seeking_description = db.Column(db.String, nullable=True)
-    shows = db.relationship("Show", back_populates="venue")
-    genres = db.relationship("VenueGenre", lazy=True)
+    # Adapted from this answer on Udacity Knowledge: https://knowledge.udacity.com/questions/926423
+    shows = db.relationship('Show', backref=db.backref('venue'), lazy="joined", cascade='all, delete')
+    genres = db.relationship("VenueGenre", backref=db.backref('venue'), lazy="joined", cascade='all, delete')
 
     @property
     def past_shows(self):
@@ -83,8 +82,8 @@ class Artist(db.Model):
     website = db.Column(db.String(2083), nullable=True)
     seeking_venue = db.Column(db.Boolean, nullable=False, default=False)
     seeking_description = db.Column(db.String, nullable=True)
-    shows = db.relationship("Show", back_populates="artist")
-    genres = db.relationship("ArtistGenre", lazy=True)
+    shows = db.relationship("Show", backref=db.backref('artist'), lazy="joined", cascade='all, delete')
+    genres = db.relationship("ArtistGenre", backref=db.backref('artist'), lazy="joined", cascade='all, delete')
 
     @property
     def past_shows(self):

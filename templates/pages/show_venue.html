@@ -75,7 +75,32 @@
 	</div>
 </section>
 
-<a href="/venues/{{ venue.id }}/edit"><button class="btn btn-primary btn-lg">Edit</button></a>
+<div style="display:flex;">
+	<a href="/venues/{{ venue.id }}/edit"><button class="btn btn-primary btn-lg">Edit</button></a>
+	<button id="delete-button" style="margin-left:10px;" type="button" data-venue-id="{{venue.id}}" class="btn btn-warning btn-lg">Delete</button>
+</div>
+<script>
+	'use strict';
+	(() => {
+		const button = document.getElementById('delete-button')
+		button.onclick = function(e) {
+			e.preventDefault();
+			const venueId = e.target.dataset.venueId
+			const url = '/venues/' + venueId + '/delete'
+			fetch(url, {
+				method: 'DELETE'
+			}).then(res => {
+				if(res.ok) {
+					window.location.href = '/';
+				} else {
+					window.location.reload();
+				}
+			}).catch(err => {
+				window.location.reload();
+			});
+		}
+	})()
+</script>
 
 {% endblock %}
 

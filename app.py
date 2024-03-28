@@ -123,6 +123,8 @@ def search_venues():
 def show_venue(venue_id):
     # shows the venue page with the given venue_id
     venue = Venue.query.filter_by(id=venue_id).first()
+    if not isinstance(venue, Venue):
+        abort(404)
     past_shows = venue.past_shows
     upcoming_shows = venue.upcoming_shows
     genre_names = [genre.genre.value for genre in venue.genres]
@@ -182,7 +184,7 @@ def create_venue_submission():
         db.session.commit()
         db.session.close()
         # on successful db insert, flash success
-        flash("Venue " + request.form["name"] + " was successfully listed!")
+        flash("Venue " + form.name.data + " was successfully listed!")
         return redirect(url_for("index"))
     except Exception as error:
         print("Error:", error)
@@ -190,32 +192,31 @@ def create_venue_submission():
         # being orphaned in a rollback due to the flush above, this is not a concern.
         db.session.rollback()
         flash(
-            "An error occurred. Venue " + request.form["name"] + " could not be listed."
+            "An error occurred. Venue " + form.name.data + " could not be listed."
         )
         db.session.close()
         abort(400)
     # No finally block here since we must return or abort (which auto-raises) in the try and except blocks.
 
 
-@app.route("/venues/<venue_id>", methods=["DELETE"])
+@app.route("/venues/<int:venue_id>/delete", methods=["DELETE"])
 def delete_venue(venue_id):
     venue = Venue.query.filter_by(id=venue_id).first()
     if not venue:
         abort(400)
+    name = venue.name
     try:
         db.session.delete(venue)
         db.session.commit()
         db.session.close()
-
+        flash("Venue " + name + " was successfully deleted!")
+        return jsonify('Success!')
     except Exception as error:
         print("Error:", error)
         db.session.rollback()
         db.session.close()
-        abort(400)
-
-    # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-    # clicking that button delete it from the db then redirect the user to the homepage
-    return None
+        flash("An error occurred. Venue " + name + " could not be deleted.")
+        return abort(400)
 
 
 #  Artists
@@ -253,6 +254,8 @@ def show_artist(artist_id):
     # shows the artist page with the given artist_id
 
     artist = Artist.query.filter_by(id=artist_id).first()
+    if not isinstance(artist, Artist):
+        abort(404)
     past_shows = artist.past_shows
     upcoming_shows = artist.upcoming_shows
     genre_names = [genre.genre.value for genre in artist.genres]
@@ -269,6 +272,8 @@ def fetch_and_build_venue(venue_id: int):
     venue = Venue.query.filter_by(
         id=venue_id
     ).first()  # We use filter_by here because get is deprecated
+    if not isinstance(venue, Venue):
+        abort(404)
     genre_names = [genre.genre.value for genre in venue.genres]
     venue_dict = venue.__dict__
     venue_dict["genres"] = genre_names
@@ -288,6 +293,8 @@ def fetch_and_build_artist(artist_id: int):
     artist = Artist.query.filter_by(
         id=artist_id
     ).first()  # We use filter_by here because get is deprecated
+    if not isinstance(artist, Artist):
+        abort(404)
     genre_names = [genre.genre.value for genre in artist.genres]
     artist_dict = artist.__dict__
     artist_dict["genres"] = genre_names
