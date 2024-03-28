@@ -212,19 +212,19 @@ def search_artists():
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
-  # shows the artist page with the given artist_id
-  
-  artist = Artist.query.filter_by(id=artist_id).first()
-  past_shows = artist.past_shows
-  upcoming_shows = artist.upcoming_shows
-  genre_names = [genre.genre.value for genre in artist.genres]
-  artist_dict = artist.__dict__
-  artist_dict["genres"] = genre_names
-  artist_dict["past_shows"] = past_shows
-  artist_dict["past_shows_count"] = artist.past_shows_count
-  artist_dict["upcoming_shows"] = upcoming_shows
-  artist_dict["upcoming_shows_count"] = artist.upcoming_shows_count
-  return render_template('pages/show_artist.html', artist=artist_dict)
+    # shows the artist page with the given artist_id
+    
+    artist = Artist.query.filter_by(id=artist_id).first()
+    past_shows = artist.past_shows
+    upcoming_shows = artist.upcoming_shows
+    genre_names = [genre.genre.value for genre in artist.genres]
+    artist_dict = artist.__dict__
+    artist_dict["genres"] = genre_names
+    artist_dict["past_shows"] = past_shows
+    artist_dict["past_shows_count"] = artist.past_shows_count
+    artist_dict["upcoming_shows"] = upcoming_shows
+    artist_dict["upcoming_shows_count"] = artist.upcoming_shows_count
+    return render_template('pages/show_artist.html', artist=artist_dict)
 
 def fetch_and_build_venue(venue_id: int):
     venue = Venue.query.filter_by(id=venue_id).first()  # We use filter_by here because get is deprecated
@@ -303,16 +303,16 @@ def edit_artist_submission(artist_id):
     except Exception as error:
         print('Error:', error)
         db.session.rollback()
-        flash("An error occurred. Artist " + form.name.data + " could not be updated.")
         db.session.close()
+        flash("An error occurred. Artist " + form.name.data + " could not be updated.")
         abort(400)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
-  form = VenueForm()
-  venue_dict = fetch_and_build_venue(venue_id)
-  form.process(data=venue_dict)  # Hydrate the form with the current data from the db
-  return render_template('forms/edit_venue.html', form=form, venue=venue_dict)
+    form = VenueForm()
+    venue_dict = fetch_and_build_venue(venue_id)
+    form.process(data=venue_dict)  # Hydrate the form with the current data from the db
+    return render_template('forms/edit_venue.html', form=form, venue=venue_dict)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
@@ -347,8 +347,8 @@ def edit_venue_submission(venue_id):
     except Exception as error:
         print("Error:", error)
         db.session.rollback()
-        flash("An error occurred. Venue " + form.name.data + " could not be updated.")
         db.session.close()
+        flash("An error occurred. Venue " + form.name.data + " could not be updated.")
         abort(400)
 
 #  Create Artist
@@ -395,12 +395,12 @@ def create_artist_submission():
         # We rollback in case of an error. Even though there is the possibility of an artist ID
         # being orphaned in a rollback due to the flush above, this is not a concern.
         db.session.rollback()
+        db.session.close()
         flash(
             "An error occurred. Artist "
             + form.name.data
             + " could not be listed."
         )
-        db.session.close()
         abort(400)
     # No finally block here since we must return or abort (which auto-raises) in the try and except blocks.
 
@@ -408,29 +408,43 @@ def create_artist_submission():
 #  Shows
 #  ----------------------------------------------------------------
 
-@app.route('/shows')
+
+@app.route("/shows")
 def shows():
-  # displays list of shows at /shows
-  data = Show.query.order_by('start_time').all()
-  return render_template('pages/shows.html', shows=data)
+    # displays list of shows at /shows
+    data = Show.query.order_by("start_time").all()
+    return render_template("pages/shows.html", shows=data)
 
-@app.route('/shows/create')
+
+@app.route("/shows/create")
 def create_shows():
-  # renders form. do not touch.
-  form = ShowForm()
-  return render_template('forms/new_show.html', form=form)
+    # renders form. do not touch.
+    form = ShowForm()
+    return render_template("forms/new_show.html", form=form)
 
-@app.route('/shows/create', methods=['POST'])
+
+@app.route("/shows/create", methods=["POST"])
 def create_show_submission():
-  # called to create new shows in the db, upon submitting new show listing form
-  # TODO: insert form data as a new Show record in the db, instead
+    form = ShowForm(request.form, meta={'csrf': False})
+    show = Show(
+        artist_id=form.artist_id.data,
+        venue_id=form.venue_id.data,
+        start_time=form.start_time.data
+    )
+    try:
+        db.session.add(show)
+        db.session.commit()
+        db.session.close()
+        # on successful db insert, flash success
+        flash("Show was successfully listed!")
+        return render_template("pages/home.html")
+    except Exception as error:
+        print('Error:', error)
+        db.session.rollback()
+        db.session.close()
+        flash('An error occurred. Show could not be listed.')
+        abort(400)
 
-  # on successful db insert, flash success
-  flash('Show was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Show could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-  return render_template('pages/home.html')
 
 @app.errorhandler(400)
 def handle_bad_request(error):
