@@ -78,8 +78,8 @@ state_list = [state.value for state in UsStates]
 state_choices = [(state.value, state.value) for state in UsStates]
 
 class ShowForm(Form):
-    artist_id = StringField("artist_id")
-    venue_id = StringField("venue_id")
+    artist_id = StringField("artist_id", validators=[DataRequired(), Regexp(regex="^\\d+$", message="Must be a number")])
+    venue_id = StringField("venue_id", validators=[DataRequired(), Regexp(regex="^\\d+$", message="Must be a number")])
     start_time = DateTimeField(
         "start_time", validators=[DataRequired()], default=datetime.today()
     )

@@ -426,6 +426,12 @@ def create_shows():
 @app.route("/shows/create", methods=["POST"])
 def create_show_submission():
     form = ShowForm(request.form, meta={'csrf': False})
+    if not form.validate_on_submit():
+        message = []
+        for field, err in form.errors.items():
+            message.append(field + ' ' + '|'.join(err))
+        flash('Errors ' + str(message))
+        return render_template("forms/new_show.html", form=form)
     show = Show(
         artist_id=form.artist_id.data,
         venue_id=form.venue_id.data,
