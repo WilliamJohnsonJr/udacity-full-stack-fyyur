@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from enum import Enum
 from flask_wtf import FlaskForm as Form
 from wtforms import (
@@ -81,7 +82,7 @@ class ShowForm(Form):
     artist_id = StringField("artist_id", validators=[DataRequired(), Regexp(regex="^\\d+$", message="Must be a number")])
     venue_id = StringField("venue_id", validators=[DataRequired(), Regexp(regex="^\\d+$", message="Must be a number")])
     start_time = DateTimeField(
-        "start_time", validators=[DataRequired()], default=datetime.today()
+        "start_time", validators=[DataRequired(message='Required, must be in format YYYY-MM-DD HH:MM:SS')], default=datetime.today()
     )
 
 
