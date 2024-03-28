@@ -141,6 +141,7 @@ def create_venue_submission():
         city=form.city.data,
         state=form.state.data,
         phone=form.phone.data,
+        address=form.address.data,
         image_link=form.image_link.data,
         website=form.website_link.data,
         facebook_link=form.facebook_link.data,
@@ -163,7 +164,8 @@ def create_venue_submission():
         # on successful db insert, flash success
         flash("Venue " + request.form["name"] + " was successfully listed!")
         return render_template("pages/home.html")
-    except:
+    except Exception as error:
+        print('Error:', error)
         # We rollback in case of an error. Even though there is the possibility of an venue ID
         # being orphaned in a rollback due to the flush above, this is not a concern.
         db.session.rollback()
@@ -225,14 +227,11 @@ def show_artist(artist_id):
   return render_template('pages/show_artist.html', artist=artist_dict)
 
 def fetch_and_build_venue(venue_id: int):
-    try:
-      venue = Venue.query.filter_by(id=venue_id).first()  # We use filter_by here because get is deprecated
-      genre_names = [genre.genre.value for genre in venue.genres]
-      venue_dict = venue.__dict__
-      venue_dict["genres"] = genre_names
-      return venue_dict
-    except Exception as error:
-        print('Venue failed to build:', error)
+    venue = Venue.query.filter_by(id=venue_id).first()  # We use filter_by here because get is deprecated
+    genre_names = [genre.genre.value for genre in venue.genres]
+    venue_dict = venue.__dict__
+    venue_dict["genres"] = genre_names
+    return venue_dict
 
 def add_genres_to_venue(venue_id: int, genres: list):
     selected_genres = genres
@@ -301,7 +300,8 @@ def edit_artist_submission(artist_id):
         db.session.close()
         flash("Artist " + form.name.data + " was successfully updated!")
         return redirect(url_for("show_artist", artist_id=artist_id))
-    except:
+    except Exception as error:
+        print('Error:', error)
         db.session.rollback()
         flash("An error occurred. Artist " + form.name.data + " could not be updated.")
         db.session.close()
@@ -326,12 +326,14 @@ def edit_venue_submission(venue_id):
         return render_template("forms/edit_venue.html", form=form, venue=venue_dict)
     venue: Venue | None = Venue.query.filter_by(id=venue_id).first()
     if not isinstance(venue, Venue):
+        print("Error:", "No Venue found")
         abort(400)
     try:
         venue.name = form.name.data
         venue.city = form.city.data
         venue.state = form.state.data
         venue.phone = form.phone.data
+        venue.address = form.address.data
         venue.image_link = form.image_link.data
         venue.facebook_link = form.facebook_link.data
         venue.website = form.website_link.data
@@ -388,7 +390,8 @@ def create_artist_submission():
         # on successful db insert, flash success
         flash("Artist " + form.name.data + " was successfully listed!")
         return render_template("pages/home.html")
-    except:
+    except Exception as error:
+        print('Error:', error)
         # We rollback in case of an error. Even though there is the possibility of an artist ID
         # being orphaned in a rollback due to the flush above, this is not a concern.
         db.session.rollback()
