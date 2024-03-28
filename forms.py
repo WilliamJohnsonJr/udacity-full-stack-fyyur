@@ -92,7 +92,7 @@ class VenueForm(Form):
         "state",
         validators=[
             DataRequired(),
-            my_genre_check,
+            AnyOf(state_list),
         ],
         choices=state_choices,
     )
