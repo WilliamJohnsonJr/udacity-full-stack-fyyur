@@ -12,7 +12,7 @@ import logging
 from logging import Formatter, FileHandler
 from flask_wtf import Form
 from forms import *
-from models import ArtistGenre, Genre, db, Show, Venue, Artist
+from models import ArtistGenre, Genre, VenueGenre, db, Show, Venue, Artist
 from sqlalchemy import func
 
 # ----------------------------------------------------------------------------#
@@ -111,7 +111,6 @@ def show_venue(venue_id):
   upcoming_shows = venue.upcoming_shows
   genre_names = [genre.genre.value for genre in venue.genres]
   venue_dict = venue.__dict__
-  venue_dict.pop('_sa_instance_state', None)
   venue_dict["genres"] = genre_names
   venue_dict["past_shows"] = past_shows
   venue_dict["past_shows_count"] = venue.past_shows_count
@@ -124,20 +123,61 @@ def show_venue(venue_id):
 
 @app.route('/venues/create', methods=['GET'])
 def create_venue_form():
-  form = VenueForm()
-  return render_template('forms/new_venue.html', form=form)
+    form = VenueForm()
+    return render_template("forms/new_venue.html", form=form)
 
-@app.route('/venues/create', methods=['POST'])
+
+@app.route("/venues/create", methods=["POST"])
 def create_venue_submission():
-  # TODO: insert form data as a new Venue record in the db, instead
-  # TODO: modify data to be the data object returned from db insertion
+    # Adapted from this answer on Udacity Knowledge: https://knowledge.udacity.com/questions/627743
+    form = VenueForm(request.form, meta={"csrf": False})
+    if not form.validate_on_submit():
+        message = []
+        for field, err in form.errors.items():
+            message.append(field + " " + "|".join(err))
+        flash("Errors " + str(message))
+        return render_template("forms/new_venue.html", form=form)
+    # called upon submitting the new venue listing form
+    venue = Venue(
+        name=form.name.data,
+        city=form.city.data,
+        state=form.state.data,
+        phone=form.phone.data,
+        image_link=form.image_link.data,
+        website=form.website_link.data,
+        facebook_link=form.facebook_link.data,
+        seeking_talent=form.seeking_talent.data,
+        seeking_description=form.seeking_description.data,
+    )
+    db.session.add(venue)
+    try:
+        db.session.flush()
+        selected_genres = form.genres.data
+        if len(selected_genres):
+            data = list(
+                map(lambda g: {"venue_id": venue.id, "genre": g}, selected_genres)
+            )
+            for item in data:
+                new_ag = VenueGenre(venue_id=item["venue_id"], genre=item["genre"])
+                db.session.add(new_ag)
+        db.session.commit()
+        db.session.close()
+        # on successful db insert, flash success
+        flash("Venue " + request.form["name"] + " was successfully listed!")
+        return render_template("pages/home.html")
+    except:
+        # We rollback in case of an error. Even though there is the possibility of an venue ID
+        # being orphaned in a rollback due to the flush above, this is not a concern.
+        db.session.rollback()
+        flash(
+            "An error occurred. Venue "
+            + request.form["name"]
+            + " could not be listed."
+        )
+        db.session.close()
+        abort(400)
+    # No finally block here since we must return or abort (which auto-raises) in the try and except blocks.
 
-  # on successful db insert, flash success
-  flash('Venue ' + request.form['name'] + ' was successfully listed!')
-  # TODO: on unsuccessful db insert, flash an error instead.
-  # e.g., flash('An error occurred. Venue ' + data.name + ' could not be listed.')
-  # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-  return render_template('pages/home.html')
 
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
@@ -179,7 +219,6 @@ def show_artist(artist_id):
   upcoming_shows = artist.upcoming_shows
   genre_names = [genre.genre.value for genre in artist.genres]
   artist_dict = artist.__dict__
-  artist_dict.pop('_sa_instance_state', None)
   artist_dict["genres"] = genre_names
   artist_dict["past_shows"] = past_shows
   artist_dict["past_shows_count"] = artist.past_shows_count
@@ -187,59 +226,130 @@ def show_artist(artist_id):
   artist_dict["upcoming_shows_count"] = artist.upcoming_shows_count
   return render_template('pages/show_artist.html', artist=artist_dict)
 
+def fetch_and_build_venue(venue_id: int):
+    try:
+      venue = Venue.query.filter_by(id=venue_id).first()  # We use filter_by here because get is deprecated
+      genre_names = [genre.genre.value for genre in venue.genres]
+      venue_dict = venue.__dict__
+      venue_dict["genres"] = genre_names
+      return venue_dict
+    except Exception as error:
+        print('Venue failed to build:', error)
+
+def add_genres_to_venue(venue_id: int, genres: list):
+    selected_genres = genres
+    if len(selected_genres):
+        data = list(
+            map(lambda g: {"venue_id": venue_id, "genre": g}, selected_genres)
+        )
+        for item in data:
+            new_vg = VenueGenre(venue_id=item["venue_id"], genre=item["genre"])
+            db.session.add(new_vg)
+
+def fetch_and_build_artist(artist_id: int):
+    artist = Artist.query.filter_by(id=artist_id).first()  # We use filter_by here because get is deprecated
+    genre_names = [genre.genre.value for genre in artist.genres]
+    artist_dict = artist.__dict__
+    artist_dict["genres"] = genre_names
+    return artist_dict
+
+def add_genres_to_artist(artist_id: int, genres: list):
+    selected_genres = genres
+    if len(selected_genres):
+        data = list(
+            map(lambda g: {"artist_id": artist_id, "genre": g}, selected_genres)
+        )
+        for item in data:
+            new_ag = ArtistGenre(artist_id=item["artist_id"], genre=item["genre"])
+            db.session.add(new_ag)
+
+
 #  Update
 #  ----------------------------------------------------------------
-@app.route('/artists/<int:artist_id>/edit', methods=['GET'])
+@app.route("/artists/<int:artist_id>/edit", methods=["GET"])
 def edit_artist(artist_id):
-  form = ArtistForm()
-  artist={
-    "id": 4,
-    "name": "Guns N Petals",
-    "genres": ["Rock n Roll"],
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "326-123-5000",
-    "website": "https://www.gunsnpetalsband.com",
-    "facebook_link": "https://www.facebook.com/GunsNPetals",
-    "seeking_venue": True,
-    "seeking_description": "Looking for shows to perform at in the San Francisco Bay Area!",
-    "image_link": "https://images.unsplash.com/photo-1549213783-8284d0336c4f?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=300&q=80"
-  }
-  # TODO: populate form with fields from artist with ID <artist_id>
-  return render_template('forms/edit_artist.html', form=form, artist=artist)
+    form = ArtistForm()
+    artist_dict = fetch_and_build_artist(artist_id)
+    form.process(data=artist_dict)  # Hydrate the form with the current data from the db
+    return render_template("forms/edit_artist.html", form=form, artist=artist_dict)
 
-@app.route('/artists/<int:artist_id>/edit', methods=['POST'])
+
+@app.route("/artists/<int:artist_id>/edit", methods=["POST"])
 def edit_artist_submission(artist_id):
-  # TODO: take values from the form submitted, and update existing
-  # artist record with ID <artist_id> using the new attributes
+    form = ArtistForm(request.form, meta={"csrf": False})
+    if not form.validate_on_submit():
+        message = []
+        for field, err in form.errors.items():
+            message.append(field + " " + "|".join(err))
+        flash("Errors " + str(message))
+        artist_dict = fetch_and_build_artist(artist_id)
+        return render_template("forms/edit_artist.html", form=form, artist=artist_dict)
+    artist: Artist | None = Artist.query.filter_by(id=artist_id).first()
+    if not isinstance(artist, Artist):
+        abort(400)
+    try:
+        artist.name = form.name.data
+        artist.city = form.city.data
+        artist.state = form.state.data
+        artist.phone = form.phone.data
+        artist.image_link = form.image_link.data
+        artist.facebook_link = form.facebook_link.data
+        artist.website = form.website_link.data
+        artist.seeking_venue = form.seeking_venue.data
+        artist.seeking_description = form.seeking_description.data
+        add_genres_to_artist(artist_id=artist.id, genres=form.genres.data)
 
-  return redirect(url_for('show_artist', artist_id=artist_id))
+        db.session.commit()
+        db.session.close()
+        flash("Artist " + form.name.data + " was successfully updated!")
+        return redirect(url_for("show_artist", artist_id=artist_id))
+    except:
+        db.session.rollback()
+        flash("An error occurred. Artist " + form.name.data + " could not be updated.")
+        db.session.close()
+        abort(400)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['GET'])
 def edit_venue(venue_id):
   form = VenueForm()
-  venue={
-    "id": 1,
-    "name": "The Musical Hop",
-    "genres": ["Jazz", "Reggae", "Swing", "Classical", "Folk"],
-    "address": "1015 Folsom Street",
-    "city": "San Francisco",
-    "state": "CA",
-    "phone": "123-123-1234",
-    "website": "https://www.themusicalhop.com",
-    "facebook_link": "https://www.facebook.com/TheMusicalHop",
-    "seeking_talent": True,
-    "seeking_description": "We are on the lookout for a local artist to play every two weeks. Please call us.",
-    "image_link": "https://images.unsplash.com/photo-1543900694-133f37abaaa5?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60"
-  }
-  # TODO: populate form with values from venue with ID <venue_id>
-  return render_template('forms/edit_venue.html', form=form, venue=venue)
+  venue_dict = fetch_and_build_venue(venue_id)
+  form.process(data=venue_dict)  # Hydrate the form with the current data from the db
+  return render_template('forms/edit_venue.html', form=form, venue=venue_dict)
 
 @app.route('/venues/<int:venue_id>/edit', methods=['POST'])
 def edit_venue_submission(venue_id):
-  # TODO: take values from the form submitted, and update existing
-  # venue record with ID <venue_id> using the new attributes
-  return redirect(url_for('show_venue', venue_id=venue_id))
+    form = VenueForm(request.form, meta={"csrf": False})
+    if not form.validate_on_submit():
+        message = []
+        for field, err in form.errors.items():
+            message.append(field + " " + "|".join(err))
+        flash("Errors " + str(message))
+        venue_dict = fetch_and_build_venue(venue_id)
+        return render_template("forms/edit_venue.html", form=form, venue=venue_dict)
+    venue: Venue | None = Venue.query.filter_by(id=venue_id).first()
+    if not isinstance(venue, Venue):
+        abort(400)
+    try:
+        venue.name = form.name.data
+        venue.city = form.city.data
+        venue.state = form.state.data
+        venue.phone = form.phone.data
+        venue.image_link = form.image_link.data
+        venue.facebook_link = form.facebook_link.data
+        venue.website = form.website_link.data
+        venue.seeking_talent = form.seeking_talent.data
+        venue.seeking_description = form.seeking_description.data
+        add_genres_to_venue(venue_id=venue.id, genres=form.genres.data)
+        db.session.commit()
+        db.session.close()
+        flash("Venue " + form.name.data + " was successfully updated!")
+        return redirect(url_for("show_venue", venue_id=venue_id))
+    except Exception as error:
+        print("Error:", error)
+        db.session.rollback()
+        flash("An error occurred. Venue " + form.name.data + " could not be updated.")
+        db.session.close()
+        abort(400)
 
 #  Create Artist
 #  ----------------------------------------------------------------
@@ -274,18 +384,11 @@ def create_artist_submission():
     db.session.add(artist)
     try:
         db.session.flush()
-        selected_genres = form.genres.data
-        if len(selected_genres):
-            data = list(
-                map(lambda g: {"artist_id": artist.id, "genre": g}, selected_genres)
-            )
-            for item in data:
-                new_ag = ArtistGenre(artist_id=item["artist_id"], genre=item["genre"])
-                db.session.add(new_ag)
+        add_genres_to_artist(artist_id=artist.id, genres=form.genres.data)
         db.session.commit()
         db.session.close()
         # on successful db insert, flash success
-        flash("Artist " + request.form["name"] + " was successfully listed!")
+        flash("Artist " + form.name.data + " was successfully listed!")
         return render_template("pages/home.html")
     except:
         # We rollback in case of an error. Even though there is the possibility of an artist ID
@@ -293,7 +396,7 @@ def create_artist_submission():
         db.session.rollback()
         flash(
             "An error occurred. Artist "
-            + request.form["name"]
+            + form.name.data
             + " could not be listed."
         )
         db.session.close()
