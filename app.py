@@ -253,7 +253,6 @@ def create_artist_form():
 def create_artist_submission():
     # Adapted from this answer on Udacity Knowledge: https://knowledge.udacity.com/questions/627743
     form = ArtistForm(request.form, meta={'csrf': False})
-    print(form.genres.data)
     if not form.validate_on_submit():
         message = []
         for field, err in form.errors.items():
@@ -261,7 +260,6 @@ def create_artist_submission():
         flash('Errors ' + str(message))
         return render_template('forms/new_artist.html', form=form)
     # called upon submitting the new artist listing form
-    seeking_venue=request.form.get("seeking_venue")
     artist = Artist(
         name=form.name.data,
         city=form.city.data,
@@ -276,15 +274,7 @@ def create_artist_submission():
     db.session.add(artist)
     try:
         db.session.flush()
-        artist_genres = form.genres.data
-        selected_genres = []
-        for ag in artist_genres:
-            if ag in [g.value for g in Genre]:
-                selected_genres.append(ag)
-            else:
-                print('bad genre')
-                raise(400)
-
+        selected_genres = form.genres.data
         if len(selected_genres):
             data = list(
                 map(lambda g: {"artist_id": artist.id, "genre": g}, selected_genres)
@@ -293,10 +283,13 @@ def create_artist_submission():
                 new_ag = ArtistGenre(artist_id=item["artist_id"], genre=item["genre"])
                 db.session.add(new_ag)
         db.session.commit()
+        db.session.close()
         # on successful db insert, flash success
         flash("Artist " + request.form["name"] + " was successfully listed!")
         return render_template("pages/home.html")
     except:
+        # We rollback in case of an error. Even though there is the possibility of an artist ID
+        # being orphaned in a rollback due to the flush above, this is not a concern.
         db.session.rollback()
         flash(
             "An error occurred. Artist "
@@ -305,6 +298,7 @@ def create_artist_submission():
         )
         db.session.close()
         abort(400)
+    # No finally block here since we must return or abort (which auto-raises) in the try and except blocks.
 
 
 #  Shows
