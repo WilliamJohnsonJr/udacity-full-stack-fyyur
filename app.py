@@ -15,7 +15,6 @@ from forms import *
 from models import ArtistGenre, Genre, db, Show, Venue, Artist
 from sqlalchemy import func
 
-
 # ----------------------------------------------------------------------------#
 # App Config.
 # ----------------------------------------------------------------------------#
@@ -23,7 +22,6 @@ from sqlalchemy import func
 app = Flask(__name__)
 moment = Moment(app)
 app.config.from_object('config')
-
 db.init_app(app)
 migrate = Migrate(app, db)
 app.app_context().push()
@@ -253,31 +251,39 @@ def create_artist_form():
 
 @app.route('/artists/create', methods=['POST'])
 def create_artist_submission():
+    # Adapted from this answer on Udacity Knowledge: https://knowledge.udacity.com/questions/627743
+    form = ArtistForm(request.form, meta={'csrf': False})
+    print(form.genres.data)
+    if not form.validate_on_submit():
+        message = []
+        for field, err in form.errors.items():
+            message.append(field + ' ' + '|'.join(err))
+        flash('Errors ' + str(message))
+        return render_template('forms/new_artist.html', form=form)
     # called upon submitting the new artist listing form
     seeking_venue=request.form.get("seeking_venue")
     artist = Artist(
-        name=request.form.get("name"),
-        city=request.form.get("city"),
-        state=request.form.get("state"),
-        phone=request.form.get("phone"),
-        image_link=request.form.get("image_link"),
-        website=request.form.get("website_link"),
-        facebook_link=request.form.get("facebook_link"),
-        seeking_venue=(True if seeking_venue else False),
-        seeking_description=request.form.get("seeking_description"),
+        name=form.name.data,
+        city=form.city.data,
+        state=form.state.data,
+        phone=form.phone.data,
+        image_link=form.image_link.data,
+        website=form.website_link.data,
+        facebook_link=form.facebook_link.data,
+        seeking_venue=form.seeking_venue.data,
+        seeking_description=form.seeking_description.data,
     )
-    print(str(artist.__dict__))
     db.session.add(artist)
     try:
         db.session.flush()
-        artist_genres = request.form.getlist("genres")
+        artist_genres = form.genres.data
         selected_genres = []
         for ag in artist_genres:
-            if ag in [g.value for g in Genre.__members__.values()]:
+            if ag in [g.value for g in Genre]:
                 selected_genres.append(ag)
             else:
-              print('bad genre')
-              raise(400)
+                print('bad genre')
+                raise(400)
 
         if len(selected_genres):
             data = list(
