@@ -163,7 +163,7 @@ def create_venue_submission():
         db.session.close()
         # on successful db insert, flash success
         flash("Venue " + request.form["name"] + " was successfully listed!")
-        return render_template("pages/home.html")
+        return redirect(url_for('index'))
     except Exception as error:
         print('Error:', error)
         # We rollback in case of an error. Even though there is the possibility of an venue ID
@@ -179,14 +179,26 @@ def create_venue_submission():
     # No finally block here since we must return or abort (which auto-raises) in the try and except blocks.
 
 
-@app.route('/venues/<venue_id>', methods=['DELETE'])
+@app.route("/venues/<venue_id>", methods=["DELETE"])
 def delete_venue(venue_id):
-  # TODO: Complete this endpoint for taking a venue_id, and using
-  # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
+    venue = Venue.query.filter_by(id=venue_id).first()
+    if not venue:
+        abort(400)
+    try:
+        db.session.delete(venue)
+        db.session.commit()
+        db.session.close()
 
-  # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-  # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+    except Exception as error:
+        print("Error:", error)
+        db.session.rollback()
+        db.session.close()
+        abort(400)
+
+    # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
+    # clicking that button delete it from the db then redirect the user to the homepage
+    return None
+
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -389,7 +401,7 @@ def create_artist_submission():
         db.session.close()
         # on successful db insert, flash success
         flash("Artist " + form.name.data + " was successfully listed!")
-        return render_template("pages/home.html")
+        return redirect(url_for('index'))
     except Exception as error:
         print('Error:', error)
         # We rollback in case of an error. Even though there is the possibility of an artist ID
@@ -443,7 +455,7 @@ def create_show_submission():
         db.session.close()
         # on successful db insert, flash success
         flash("Show was successfully listed!")
-        return render_template("pages/home.html")
+        return redirect(url_for('index'))
     except Exception as error:
         print('Error:', error)
         db.session.rollback()
