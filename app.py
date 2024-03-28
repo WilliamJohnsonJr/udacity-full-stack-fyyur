@@ -99,17 +99,20 @@ def venues():
 
 @app.route("/venues/search", methods=["POST"])
 def search_venues():
-    # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
-    # seach for Hop should return "The Musical Hop".
+    # search on venues with partial string search. Case-insensitive.
+    # search for Hop should return "The Musical Hop".
     # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+    venues = db.session.query(Venue).filter(Venue.name.ilike(f'%{request.form.get("search_term", "")}%')).all()
+
+    count = len(venues)
+
     response = {
-        "count": 1,
-        "data": [
-            {
-                "id": 2,
-                "name": "The Dueling Pianos Bar",
-                "num_upcoming_shows": 0,
-            }
+        "count": count,
+        "data": [ {
+                "id": venue.id,
+                "name": venue.name,
+                "num_upcoming_shows": venue.upcoming_shows_count,
+            } for venue in venues 
         ],
     }
     return render_template(
@@ -229,17 +232,20 @@ def artists():
 
 @app.route("/artists/search", methods=["POST"])
 def search_artists():
-    # TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
+    # Search on artists with partial string search. Case-insensitive.
     # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
     # search for "band" should return "The Wild Sax Band".
+    artists = db.session.query(Artist).filter(Artist.name.ilike(f'%{request.form.get("search_term", "")}%')).all()
+
+    count = len(artists)
+
     response = {
-        "count": 1,
-        "data": [
-            {
-                "id": 4,
-                "name": "Guns N Petals",
-                "num_upcoming_shows": 0,
-            }
+        "count": count,
+        "data": [ {
+                "id": artist.id,
+                "name": artist.name,
+                "num_upcoming_shows": artist.upcoming_shows_count,
+            } for artist in artists 
         ],
     }
     return render_template(
