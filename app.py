@@ -59,8 +59,6 @@ def index():
 
 @app.route('/venues')
 def venues():
-    #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-    
     # Adapted from the Udacity Knowledge Center post here: https://knowledge.udacity.com/questions/145968#148233
 
     areas = (
