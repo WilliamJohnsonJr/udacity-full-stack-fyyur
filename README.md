@@ -19,6 +19,24 @@ source venv/bin/activate
 source env/Scripts/activate
 ```
 
+**Add a `config.py` file to the project root to connect to your local db:**
+It should look like this (fill in your db details where it says `'DB_GOES_HERE'`):
+```python
+import os
+SECRET_KEY = os.urandom(32)
+# Grabs the folder where the script runs.
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+# Enable debug mode.
+DEBUG = True
+
+# Connect to the database
+
+
+# IMPLEMENT DATABASE URL
+SQLALCHEMY_DATABASE_URI = 'DB_GOES_HERE'
+```
+
 **Install the dependencies:**
 ```
 pip install -r requirements.txt
