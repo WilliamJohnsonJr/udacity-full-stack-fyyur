@@ -28,6 +28,9 @@ def downgrade():
         DELETE FROM venue_genre;
     """)
     op.execute("""
+        DELETE FROM shows;
+    """)
+    op.execute("""
         DELETE FROM venues;
     """)
     op.execute("""
