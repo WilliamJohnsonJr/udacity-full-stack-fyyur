@@ -85,12 +85,15 @@ def venues():
     for area in areas:
         venue_list = []
         venues = Venue.query.filter(Venue.city == area.city, Venue.state == area.state)
+        
         for venue in venues:
             venue_list.append(
                 {
                     "id": venue.id,
                     "name": venue.name,
-                    "num_upcoming_shows": venue.upcoming_shows_count,
+                    "num_upcoming_shows": db.session.query(Show).join(Venue).filter(
+                        Show.venue_id == venue.id
+                    ).filter(Show.start_time<datetime.now()).order_by('start_time').count()
                 }
             )
         data.append({"city": area.city, "state": area.state, "venues": venue_list})
@@ -111,7 +114,9 @@ def search_venues():
         "data": [ {
                 "id": venue.id,
                 "name": venue.name,
-                "num_upcoming_shows": venue.upcoming_shows_count,
+                "num_upcoming_shows": db.session.query(Show).join(Venue).filter(
+                    Show.venue_id == venue.id
+                ).filter(Show.start_time<datetime.now()).order_by('start_time').count(),
             } for venue in venues 
         ],
     }
@@ -128,15 +133,21 @@ def show_venue(venue_id):
     venue = Venue.query.filter_by(id=venue_id).first()
     if not isinstance(venue, Venue):
         abort(404)
-    past_shows = venue.past_shows
-    upcoming_shows = venue.upcoming_shows
+    past_shows = db.session.query(Show).join(Venue).filter(
+        Show.venue_id==venue_id
+    ).filter(Show.start_time<datetime.now()).order_by('start_time').all()
+    past_shows_count = len(past_shows)
+    upcoming_shows = db.session.query(Show).join(Venue).filter(
+        Show.venue_id==venue_id
+    ).filter(Show.start_time>=datetime.now()).order_by('start_time').all()
+    upcoming_shows_count = len(upcoming_shows)
     genre_names = [genre.genre.value for genre in venue.genres]
     venue_dict = venue.__dict__
     venue_dict["genres"] = genre_names
     venue_dict["past_shows"] = past_shows
-    venue_dict["past_shows_count"] = venue.past_shows_count
+    venue_dict["past_shows_count"] = past_shows_count
     venue_dict["upcoming_shows"] = upcoming_shows
-    venue_dict["upcoming_shows_count"] = venue.upcoming_shows_count
+    venue_dict["upcoming_shows_count"] = upcoming_shows_count
     return render_template("pages/show_venue.html", venue=venue_dict)
 
 
@@ -244,7 +255,9 @@ def search_artists():
         "data": [ {
                 "id": artist.id,
                 "name": artist.name,
-                "num_upcoming_shows": artist.upcoming_shows_count,
+                "num_upcoming_shows": db.session.query(Show).join(Venue).filter(
+                    Show.artist_id == artist.id
+                ).filter(Show.start_time<datetime.now()).order_by('start_time').count(),
             } for artist in artists 
         ],
     }
@@ -262,15 +275,22 @@ def show_artist(artist_id):
     artist = Artist.query.filter_by(id=artist_id).first()
     if not isinstance(artist, Artist):
         abort(404)
-    past_shows = artist.past_shows
-    upcoming_shows = artist.upcoming_shows
+    past_shows = db.session.query(Show).join(Artist).filter(
+        Show.artist_id==artist_id
+    ).filter(Show.start_time<datetime.now()).order_by('start_time').all()
+    past_shows_count = len(past_shows)
+    upcoming_shows = db.session.query(Show).join(Artist).filter(
+        Show.artist_id==artist_id
+    ).filter(Show.start_time>=datetime.now()).order_by('start_time').all()
+    upcoming_shows_count = len(upcoming_shows)
+
     genre_names = [genre.genre.value for genre in artist.genres]
     artist_dict = artist.__dict__
     artist_dict["genres"] = genre_names
     artist_dict["past_shows"] = past_shows
-    artist_dict["past_shows_count"] = artist.past_shows_count
+    artist_dict["past_shows_count"] = past_shows_count
     artist_dict["upcoming_shows"] = upcoming_shows
-    artist_dict["upcoming_shows_count"] = artist.upcoming_shows_count
+    artist_dict["upcoming_shows_count"] = upcoming_shows_count
     return render_template("pages/show_artist.html", artist=artist_dict)
 
 

@@ -44,26 +44,6 @@ class Venue(db.Model):
     shows = db.relationship('Show', backref=db.backref('venue'), lazy="joined", cascade='all, delete')
     genres = db.relationship("VenueGenre", backref=db.backref('venue'), lazy="joined", cascade='all, delete')
 
-    @property
-    def past_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time < current_time]
-
-    @property
-    def past_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time < current_time])
-
-    @property
-    def upcoming_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time >= current_time]
-
-    @property
-    def upcoming_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time >= current_time])
-
     def __repr__(self):
         return f"<Venue {self.id}, {self.name}>"
 
@@ -84,26 +64,6 @@ class Artist(db.Model):
     seeking_description = db.Column(db.String, nullable=True)
     shows = db.relationship("Show", backref=db.backref('artist'), lazy="joined", cascade='all, delete')
     genres = db.relationship("ArtistGenre", backref=db.backref('artist'), lazy="joined", cascade='all, delete')
-
-    @property
-    def past_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time < current_time]
-
-    @property
-    def past_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time < current_time])
-
-    @property
-    def upcoming_shows(self):
-        current_time = datetime.now()
-        return [show for show in self.shows if show.start_time >= current_time]
-
-    @property
-    def upcoming_shows_count(self):
-        current_time = datetime.now()
-        return len([show for show in self.shows if show.start_time >= current_time])
 
     def __repr__(self):
         return f"<Artist {self.id}, {self.name}>"
