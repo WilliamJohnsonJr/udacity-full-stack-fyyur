@@ -7,19 +7,27 @@ Built as part of the Udacity Full Stack Web Developer nanodegree program. See OR
 
 Fyyur is a musical venue and artist booking site that facilitates the discovery and bookings of shows between local performing artists and venues. This site lets you list new artists and venues, discover them, and list shows with artists as a venue owner.
 
-# Setup:
+# Setup Steps:
 
-**Initialize and activate a virtualenv using:**
+1. **Initialize and activate a virtualenv using:**
 ```
-python -m venv venv
-source venv/bin/activate
+python3 -m venv venv
+source ./venv/bin/activate
 ```
 >**Note** - In Windows, the `env` does not have a `bin` directory. Therefore, you'd use the analogous command shown below:
 ```
-source env/Scripts/activate
+source venv/Scripts/activate
 ```
 
-**Add a `config.py` file to the project root to connect to your local db:**
+2. **Install the dependencies:**
+```
+pip install -r requirements.txt
+```
+
+3. **Change `config.py` to connect to your local db:**
+To use the current `config.py`, run:
+- `createdb fyyur`
+
 It should look like this (fill in your db details where it says `'DB_GOES_HERE'`):
 ```python
 import os
@@ -37,14 +45,10 @@ DEBUG = True
 SQLALCHEMY_DATABASE_URI = 'DB_GOES_HERE'
 ```
 
-**Install the dependencies:**
-```
-pip install -r requirements.txt
-```
+4. **Migrate your database**
+Run: `flask db upgrade`
 
-**Run the development server:**
+5. **Run the development server:**
 ```
-export FLASK_APP=myapp
-export FLASK_ENV=development # enables debug mode
-python3 app.py
+FLASK_APP=myapp FLASK_ENV=development python3 app.py
 ```
